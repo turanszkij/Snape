@@ -1,4 +1,14 @@
 "use strict"
+// Segedfuggvenyek
+
+function $(selector) {
+    return document.querySelector(selector);
+}
+
+function $$(selector) {
+    return document.querySelectorAll(selector);
+}
+
 
 document.addEventListener('keydown', onKeyDown, false);
 document.addEventListener('keyup', onKeyUp, false);
@@ -16,6 +26,17 @@ var snake = {
 };
 var cellSize = 10;
 var powerup = 0; // 0: none, 3:bolcsesseg, 4:tukor, 5:ford, 6:mohosag, 7:lustasag, 8:falanksag
+
+
+$('#settings').addEventListener("submit", function(e){
+    e.preventDefault();
+    N = $('#N').value;
+    M = $('#M').value;
+    K = $('#K').value;
+    canvas.width = N * cellSize;
+    canvas.height = M * cellSize;
+    init();
+}, false);
 
 init();
 gameLoop();
@@ -215,13 +236,13 @@ function isCollision(a,b) {
 
 function onKeyDown(e){
     var code = e.which;
-    if(code==39)
+    if(code==39 && snake.dir!=2)
         snake.dir=0;
-    if(code==40)
+    if(code==40 && snake.dir!=3)
         snake.dir=1;
-    if(code==37)
+    if(code==37 && snake.dir!=0)
         snake.dir=2;
-    if(code==38)
+    if(code==38 && snake.dir!=1)
         snake.dir=3;
 }
 function onKeyUp(e){
