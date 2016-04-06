@@ -11,12 +11,11 @@ function $$(selector) {
 
 
 document.addEventListener('keydown', onKeyDown, false);
-document.addEventListener('keyup', onKeyUp, false);
 
 var canvas = document.querySelector('#canvas');
 var ctx = canvas.getContext('2d');
 var lastTime = Date.now();
-var N = 30, M = 50, K = 2;
+var N = 10, M = 10, K = 2;
 var grid; // 0:empty, 1:snake, 2:block
 var snake = {
     dir : 0, // 0:right, 1:up, 2:left, 3:down
@@ -26,13 +25,16 @@ var snake = {
 };
 var cellSize = 10;
 var powerup = 0; // 0: none, 3:bolcsesseg, 4:tukor, 5:ford, 6:mohosag, 7:lustasag, 8:falanksag
-
+var gamespeed = 300;
+var directionqueue = [];
+var state = 0; // 0:game, 1:over
 
 $('#settings').addEventListener("submit", function(e){
     e.preventDefault();
     N = $('#N').value;
     M = $('#M').value;
     K = $('#K').value;
+    gamespeed = 1000 - $('#SPEED').value;
     canvas.width = N * cellSize;
     canvas.height = M * cellSize;
     init();
@@ -71,9 +73,12 @@ function genPickup() {
         if(grid[pos.x][pos.y] != 0)
             failed=true;
     }
+    
     grid[pos.x][pos.y] = pickup;
 }
 function init() {
+    state = 0;
+    
     snake.dir = 0;
     snake.vel = 1;
     snake.tiles = [{x:0,y:0}];
@@ -90,8 +95,8 @@ function init() {
     grid[snake.tiles[0].x][snake.tiles[0].y] = 1;
     
     var blocks = [{x:veletlen(N,1),y:veletlen(M,1)}];
-    grid[blocks[0].x][blocks[0].y] = 2;
-    for(var i=0; i<K-1; i++){
+    //grid[blocks[0].x][blocks[0].y] = 2;
+    for(var i=0; i<K; i++){
         var x=veletlen(N,1);
         var y=veletlen(M,1);
         var placeable = true;
@@ -116,15 +121,37 @@ function gameLoop() {
 }
 
 function update(){
+    if(state!=0)
+        return;
+    
     var dt = Date.now() - lastTime;
     
-    if(dt<100)
+    if(dt<gamespeed)
         return;
+    
     
     lastTime += dt;
     dt /= 1000.0;
     
     var move={x:0,y:0};
+    
+    var dir = directionqueue[0];
+    directionqueue.shift(); // pop front
+    
+    if(powerup == 4){
+        //tukor
+        dir = dir+2
+        dir = dir%4;
+    }
+    
+    if(dir==0 && snake.dir!=2)
+        snake.dir=0;
+    if(dir==1 && snake.dir!=3)
+        snake.dir=1;
+    if(dir==2 && snake.dir!=0)
+        snake.dir=2;
+    if(dir==3 && snake.dir!=1)
+        snake.dir=3;
     
     if(snake.dir==0)
         move.x += snake.vel;
@@ -150,13 +177,13 @@ function update(){
     snake.tiles[0].y+=move.y;
     if(snake.tiles[0].x<0 || snake.tiles[0].y<0 
     || snake.tiles[0].x>=N || snake.tiles[0].y>=M){
-        init();
+        state=1;
         return; // fallal utk
     }
     
     var eat = grid[snake.tiles[0].x][snake.tiles[0].y];
     if(eat == 2 || eat == 1){
-        init();
+        state=1;
         return; // akadallyal/farokkal utk
     }
     else if(eat!=0){
@@ -165,7 +192,21 @@ function update(){
         powerup = eat;
         switch(eat){
             case 3:
-                snake.append += 4;
+                snake.append += 4; // bolcsesseg
+                break;
+            case 8:
+                // falanksag
+                snake.append += 10;
+                break;
+            case 5:
+                var swap = [];
+                for(var i=0;i<snake.tiles.length;i++){
+                    swap.push({x:snake.tiles[i].x,y:snake.tiles[i].y});
+                }
+                for(var i=0;i<snake.tiles.length;i++){
+                    snake.tiles[snake.tiles.length-1-i]=swap[i];
+                }
+                snake.dir = (snake.dir + 2) % 4;
                 break;
             default: break;
         };
@@ -192,9 +233,10 @@ function update(){
 }
 
 function draw(){
-    ctx.fillStyle = 'yellow';
+    ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    if(state==0){
     for(var i=0; i<N; i++){
         for(var j=0; j<M; j++){
             if(grid[i][j] == 0) // tabla
@@ -219,6 +261,40 @@ function draw(){
         }
     }
     
+    
+    var pwt="None";
+    switch(powerup){
+        case 3:
+        pwt="Bolcsesseg";
+        break;
+        case 4:
+        pwt="Tukrok";
+        break;
+        case 5:
+        pwt="Forditas";
+        break;
+        case 6:
+        pwt="Mohosag";
+        break;
+        case 7:
+        pwt="Lustasag";
+        break;
+        case 8:
+        pwt="Falanksag";
+        break;  
+        default:break;
+    };
+    
+    ctx.fillStyle = 'cyan';
+    ctx.font="14px Georgia";
+    ctx.fillText('Powerup: '+pwt,0,34);
+    }
+    else{
+        ctx.fillStyle = 'red';
+        ctx.font="15px Georgia";
+        ctx.fillText('GAME OVER',canvas.width/2 - 45,canvas.height/2);
+    }
+    
     ctx.fillStyle = 'cyan';
     ctx.font="20px Georgia";
     ctx.fillText('Score: '+snake.tiles.length,0,20);
@@ -236,15 +312,16 @@ function isCollision(a,b) {
 
 function onKeyDown(e){
     var code = e.which;
-    if(code==39 && snake.dir!=2)
-        snake.dir=0;
-    if(code==40 && snake.dir!=3)
-        snake.dir=1;
-    if(code==37 && snake.dir!=0)
-        snake.dir=2;
-    if(code==38 && snake.dir!=1)
-        snake.dir=3;
-}
-function onKeyUp(e){
-    //ship.dir=0;
+    if(code==39)
+        directionqueue.push(0);
+    if(code==40)
+        directionqueue.push(1);
+    if(code==37)
+        directionqueue.push(2);
+    if(code==38)
+        directionqueue.push(3);
+        
+    // no future movement
+    if(directionqueue.length>2)
+        directionqueue.shift();
 }
